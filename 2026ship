@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 地中海・全食・金牌導遊終極版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; overflow-x: hidden; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .bg-mediterranean { background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); }
+        .animate-pop { animation: pop 0.3s ease-out; }
+        @keyframes pop { 0% { transform: scale(0.98); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body class="bg-[#F0F9FF]">
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+        const { useState, useEffect, useMemo } = React;
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'med-eclipse-2026';
+
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [activeTab, setActiveTab] = useState('itinerary');
+            const [selectedDayIndex, setSelectedDayIndex] = useState(null);
+            const [selectedSpot, setSelectedSpot] = useState(null);
+            const [solvedRiddles, setSolvedRiddles] = useState({});
+            
+            // 記帳與清單
+            const [expenses, setExpenses] = useState([]);
+            const [newExp, setNewExp] = useState({ title: '', amount: '', paidBy: '', splitWith: [] });
+            const [participants] = useState(['成員 A', '成員 B', '成員 C', '成員 D']);
+            const [checkedItems, setCheckedItems] = useState({});
+
+            // 1. Firebase 認證 (Rule 3)
+            useEffect(() => {
+                const initAuth = async () => {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                };
+                initAuth();
+                const unsubscribe = onAuthStateChanged(auth, setUser);
+                return () => unsubscribe();
+            }, []);
+
+            // 2. 監聽 Firestore 資料 (Rule 1 & 2)
+            useEffect(() => {
+                if (!user) return;
+                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'expenses');
+                const unsubscribe = onSnapshot(colRef, (snapshot) => {
+                    setExpenses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                }, (err) => console.error(err));
+                return () => unsubscribe();
+            }, [user]);
+
+            useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
+
+            // 完整行程數據 (金牌導遊版本)
+            const itineraryData = [
+                {
+                    date: '8/2', title: '🇮🇹 羅馬：永恆之城的華麗序幕', port: 'Rome, Italy', weather: '晴朗微熱 32°C', dress: '輕便透氣夏裝、防磨腳平底鞋',
+                    schedule: ['飛抵羅馬 FCO', '特維拉噴泉許願', '西班牙廣場散步'],
+                    spots: [
+                        { 
+                            name: '特維拉噴泉 (Trevi Fountain)', icon: 'waves', 
+                            history: '各位旅客請看！這座噴泉是巴洛克藝術的巔峰。中央是海神尼普頓。相傳右手拿硬幣越過左肩投進水中，這輩子就一定能重返羅馬。投兩枚代表收穫愛情，三枚則是步入禮堂！',
+                            riddles: [
+                                { q: '噴泉中央的海神是哪位？', options: ['尼普頓', '宙斯', '阿波羅', '波賽頓'], a: 0 },
+                                { q: '許願投幣應該用哪隻手？', options: ['左手', '右手', '雙手'], a: 1 },
+                                { q: '水源來自古羅馬哪條水道？', options: ['雨水水道', '處女水道', '凱薩水道'], a: 1 },
+                                { q: '噴泉每年的硬幣大約會收集多少錢？', options: ['10萬歐', '50萬歐', '150萬歐以上'], a: 2 }
+                            ]
+                        },
+                        { 
+                            name: '西班牙廣場', icon: 'landmark', 
+                            history: '著名的 135 階樓梯，因《羅馬假期》赫本在階梯上吃冰淇淋而聞名。導遊提醒：為了保護古蹟，現在階梯嚴禁坐下或飲食，否則會被罰款，我們站著拍美照就好！',
+                            riddles: [{ q: '底部的噴泉叫什麼名字？', options: ['破船噴泉', '海神噴泉', '四河噴泉'], a: 0 }, { q: '共有幾階？', options: ['125', '135', '150'], a: 1 }]
+                        }
+                    ]
+                },
+                {
+                    date: '8/3', title: '🇮🇹 梵蒂岡神權與競技場皇權', port: 'Vatican City & Rome', weather: '炎熱 31°C', dress: '莊重裝束 (不露肩裙褲過膝)',
+                    schedule: ['梵蒂岡博物館深度導覽', '13:30 羅馬競技場專業解說'],
+                    spots: [
+                        { name: '梵蒂岡博物館', icon: 'castle', history: '世界上最小的國家，卻擁有最龐大的藝術收藏。西斯汀小堂內，米開朗基羅花了四年完成的《創世紀》是靈魂震撼之作。', riddles: [{ q: '天頂畫作者是？', options: ['拉斐爾', '米開朗基羅', '達文西'], a: 1 }] },
+                        { name: '羅馬競技場', icon: 'history', history: '古羅馬最偉大的圓形劇場，見證了兩千年的興衰與熱血。', riddles: [{ q: '可容納多少人？', options: ['1萬', '5萬', '10萬'], a: 1 }, { q: '地下層的主要功能？', options: ['格鬥士待命', '皇帝寢室', '圖書館'], a: 0 }] }
+                    ]
+                },
+                {
+                    date: '8/5', title: '🇮🇹 Day 2: 沉睡的龐貝與湛藍卡布里', port: 'Naples, Italy', weather: '晴 30°C', dress: '防曬服裝、太陽眼鏡',
+                    schedule: ['龐貝古城遺址', '卡布里島藍洞奇航'],
+                    spots: [
+                        { name: '龐貝古城 (Pompeii)', icon: 'ghost', history: '西元 79 年維蘇威火山爆發將其掩埋。這裡是一本被凍結的歷史書，讓我們窺見古羅馬人真實的日常生活。', riddles: [{ q: '摧毀它的火山是？', options: ['埃特納', '維蘇威', '聖海倫'], a: 1 }, { q: '哪種畫法保存了牆面？', options: ['油畫', '濕壁畫', '版畫'], a: 1 }] },
+                        { name: '卡布里島藍洞', icon: 'gem', history: '進入藍洞必須平躺於小船內。因陽光折射海底形成的夢幻寶石藍光，被譽為世界七大奇景之一。', riddles: [{ q: '進入藍洞必須？', options: ['站立', '平躺', '大聲唱歌'], a: 1 }] }
+                    ]
+                },
+                {
+                    date: '8/12', title: '🌑 Day 9: 2026 日全食之約', port: 'Total Eclipse Day', weather: '觀測首選 27°C', dress: '日蝕主題色 (銀/黑/金)',
+                    schedule: ['海上航行觀測', '16:00 全食時刻', '日蝕慶祝晚宴'],
+                    spots: [
+                        { name: '日全食觀測 (Eclipse)', icon: 'moon-star', history: '月球擋住太陽的一瞬間，世界陷入神祕黑暗。日冕將如銀絲般綻放，這是幾百年才有的機緣。', riddles: [{ q: '白色外環光圈叫？', options: ['日冕', '黑子', '耀斑'], a: 0 }, { q: '必須使用哪種標準眼鏡？', options: ['雷朋', 'ISO 12312-2', '近視眼鏡'], a: 1 }] }
+                    ]
+                },
+                {
+                    date: '8/14', title: '🇬🇧 Day 11: 直布羅陀之岩與猴子', port: 'Gibraltar, UK', weather: '涼爽微風 25°C', dress: '休閒長袖外套',
+                    schedule: ['07:00 抵達', '巨岩登頂纜車', '探訪野生獼猴'],
+                    spots: [{ name: '直布羅陀巨岩', icon: 'mountain', history: '英國海外領土。山頂有著名的巴巴里獼猴，傳說只要猴子還在，英國就永遠擁有此地。', riddles: [{ q: '目前歸屬哪國？', options: ['西班牙', '英國', '法國'], a: 1 }, { q: '獼猴來自？', options: ['北非', '亞洲', '南美'], a: 0 }] }]
+                },
+                {
+                    date: '8/16', title: '🇪🇸 Day 13: 巴塞隆納高第夢想', port: 'Barcelona, Spain', weather: '陽光 29°C', dress: '時尚度假服裝',
+                    schedule: ['07:00 抵達', '聖家堂朝聖', '蘭布拉大道血拼'],
+                    spots: [{ name: '聖家堂', icon: 'castle', history: '高第將自然森林融入建築。蓋了一百多年尚未完工，因為「他的客戶（上帝）不趕時間」。', riddles: [{ q: '設計師是？', options: ['畢卡索', '達利', '高第'], a: 2 }] }]
+                }
+            ];
+
+            const flightInfo = {
+                outbound: [ { date: '2026/08/02', flight: 'EK387', route: 'TPE - DXB', time: '23:35 - 04:15' }, { date: '2026/08/02', flight: 'EK097', route: 'DXB - FCO', time: '09:10 - 13:25' } ],
+                inbound: [ { date: '2026/08/18', flight: 'EK098', route: 'FCO - DXB', time: '15:25 - 23:25' }, { date: '2026/08/19', flight: 'EK0366', route: 'DXB - TPE', time: '04:35 - 16:40' } ]
+            };
+
+            const checklistData = [
+                { category: "必備文件", items: ["護照 (效期2027/02後)", "郵輪 Medallion 感應勳章", "阿聯酋電子機票", "海外平安險證明"] },
+                { category: "衣物計畫 (15天)", items: ["正式晚宴服 2套 (西裝/禮服)", "夏日休閒排汗衣 10套", "泳裝/泳帽 2套", "薄外套 (船上冷氣強) 1件", "舒適健行鞋 1雙", "正式皮鞋/高跟鞋 1雙", "夾腳拖/涼鞋 1雙", "內衣褲/襪子 15天份"] },
+                { category: "夏日避暑裝備", items: ["ISO 認證日全食觀測鏡 (必備)", "手持電動風扇/掛脖扇", "抗 UV400 墨鏡", "大寬簷遮陽帽", "強力防曬乳 (SPF50+)", "降溫噴霧/濕紙巾"] },
+                { category: "電子產品", items: ["萬用轉接頭 (歐規C型)", "大容量行動電源", "多孔充頭", "防水手機袋 (卡布里島用)"] }
+            ];
+
+            const handleAddExpense = async () => {
+                if (!newExp.title || !newExp.amount || !newExp.paidBy || newExp.splitWith.length === 0) return;
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'), { ...newExp, amount: parseFloat(newExp.amount), date: new Date().toISOString() });
+                setNewExp({ title: '', amount: '', paidBy: '', splitWith: [] });
+            };
+
+            const balances = useMemo(() => {
+                const bal = {};
+                participants.forEach(p => bal[p] = 0);
+                expenses.forEach(e => {
+                    const share = e.amount / e.splitWith.length;
+                    bal[e.paidBy] += (e.amount - (e.splitWith.includes(e.paidBy) ? share : 0));
+                    e.splitWith.forEach(p => { if (p !== e.paidBy) bal[p] -= share; });
+                });
+                return bal;
+            }, [expenses]);
+
+            return (
+                <div className="min-h-screen pb-32">
+                    {/* Header */}
+                    <header className="bg-mediterranean text-white p-10 rounded-b-[60px] shadow-2xl text-center relative overflow-hidden">
+                        <i data-lucide="sparkles" className="absolute top-4 left-4 opacity-40 w-10 h-10 animate-pulse"></i>
+                        <h1 className="text-3xl font-black tracking-tight leading-tight">2026 地中海・全食・終極版</h1>
+                        <p className="text-blue-100 text-xs mt-3 font-bold tracking-[4px] uppercase">Gold Guide Sync Mode 🎙️</p>
+                    </header>
+
+                    <main className="p-4 max-w-2xl mx-auto -mt-8">
+                        {/* Tabs */}
+                        <div className="flex space-x-2 overflow-x-auto no-scrollbar mb-8 bg-white/80 p-2 rounded-[30px] backdrop-blur-lg border border-white shadow-xl">
+                            {[{ id: 'itinerary', label: '每日導覽', icon: 'ship' }, { id: 'riddles', label: '解謎挑戰', icon: 'gamepad-2' }, { id: 'wallet', label: '多人分帳', icon: 'wallet' }, { id: 'prep', label: '行前清單', icon: 'check-square' }, { id: 'flights', label: '航班交通', icon: 'plane' }].map(tab => (
+                                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center px-5 py-3 rounded-2xl whitespace-nowrap font-bold transition-all ${activeTab === tab.id ? 'bg-blue-600 text-white shadow-lg scale-105' : 'text-blue-400 hover:bg-white'}`}>
+                                    <i data-lucide={tab.icon} className="mr-2 w-4 h-4"></i> {tab.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Itinerary Tab */}
+                        {activeTab === 'itinerary' && (
+                            <div className="space-y-4 animate-pop">
+                                {itineraryData.map((day, idx) => (
+                                    <div key={idx} className="bg-white rounded-[40px] shadow-sm border border-blue-50 overflow-hidden">
+                                        <div onClick={() => setSelectedDayIndex(selectedDayIndex === idx ? null : idx)} className="p-6 cursor-pointer hover:bg-sky-50 transition flex items-center justify-between">
+                                            <div className="flex items-center">
+                                                <div className="bg-blue-600 text-white w-14 h-14 rounded-3xl flex flex-col items-center justify-center mr-5 font-black shadow-lg">
+                                                    <span className="text-[10px] opacity-80 leading-none">{day.date}</span>
+                                                    <span className="text-lg leading-none">Day</span>
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-black text-slate-800 text-base">{day.title}</h3>
+                                                    <p className="text-[11px] text-blue-400 font-bold uppercase">{day.port}</p>
+                                                </div>
+                                            </div>
+                                            <i data-lucide={selectedDayIndex === idx ? "chevron-up" : "chevron-down"} className="text-blue-200"></i>
+                                        </div>
+                                        {selectedDayIndex === idx && (
+                                            <div className="px-6 pb-6 animate-in slide-in-from-top-4">
+                                                <div className="grid grid-cols-2 gap-4 mb-4 font-black">
+                                                    <div className="bg-sky-50 p-4 rounded-3xl text-xs"><p className="text-blue-400 text-[9px] uppercase mb-1 tracking-tighter">當日天氣</p>{day.weather}</div>
+                                                    <div className="bg-orange-50 p-4 rounded-3xl text-xs"><p className="text-orange-400 text-[9px] uppercase mb-1 tracking-tighter">Dress Code</p>{day.dress}</div>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    {day.spots.map((spot, sIdx) => (
+                                                        <button key={sIdx} onClick={() => setSelectedSpot(spot)} className="w-full text-left p-5 bg-white rounded-3xl flex items-center justify-between border border-blue-50 shadow-sm hover:bg-blue-600 group transition">
+                                                            <div className="flex items-center">
+                                                                <i data-lucide={spot.icon} className="text-blue-500 mr-4 group-hover:text-white transition"></i>
+                                                                <span className="text-sm font-black group-hover:text-white transition">{spot.name}</span>
+                                                            </div>
+                                                            <span className="text-[9px] bg-blue-50 text-blue-400 px-3 py-1.5 rounded-xl font-black group-hover:bg-blue-500 group-hover:text-white transition">導覽</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Riddles Tab */}
+                        {activeTab === 'riddles' && (
+                            <div className="space-y-6 animate-pop">
+                                {itineraryData.map((day, dIdx) => (
+                                    <div key={dIdx} className="space-y-4">
+                                        <h4 className="text-xs font-black text-blue-500 uppercase tracking-[3px] px-6 mt-8 flex items-center"><i data-lucide="map-pin" className="mr-2 w-3 h-3"></i> {day.date} {day.port} 挑戰</h4>
+                                        {day.spots.map((spot, sIdx) => (
+                                            <div key={sIdx} className="bg-white rounded-[40px] p-8 shadow-sm border border-blue-50">
+                                                <p className="text-xs font-black text-slate-400 uppercase mb-6 flex items-center"><i data-lucide={spot.icon} className="mr-2 w-4 h-4"></i> {spot.name} 謎題</p>
+                                                <div className="space-y-6">
+                                                    {spot.riddles.map((r, rIdx) => {
+                                                        const key = `${spot.name}-${rIdx}`;
+                                                        const isSolved = solvedRiddles[key] !== undefined;
+                                                        return (
+                                                            <div key={rIdx} className={`p-6 rounded-[30px] border-2 transition ${isSolved ? (solvedRiddles[key] === r.a ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200') : 'bg-slate-50 border-transparent'}`}>
+                                                                <p className="text-sm font-black text-slate-700 mb-5">{rIdx+1}. {r.q}</p>
+                                                                <div className="grid gap-3">
+                                                                    {r.options.map((opt, oIdx) => (
+                                                                        <button key={oIdx} disabled={isSolved} onClick={() => setSolvedRiddles({...solvedRiddles, [key]: oIdx})} className={`text-left p-4 rounded-2xl text-xs font-bold transition-all shadow-sm ${isSolved ? (oIdx === r.a ? 'bg-green-500 text-white' : (solvedRiddles[key] === oIdx ? 'bg-red-500 text-white' : 'bg-white opacity-40')) : 'bg-white text-slate-500 hover:bg-blue-600 hover:text-white'}`}>{opt}</button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Wallet Tab */}
+                        {activeTab === 'wallet' && (
+                            <div className="space-y-6 animate-pop">
+                                <div className="bg-white p-8 rounded-[40px] shadow-sm border-2 border-blue-100">
+                                    <h2 className="text-xl font-black text-blue-600 mb-6 flex items-center"><i data-lucide="plus-circle" className="mr-2"></i> 同步記帳</h2>
+                                    <div className="space-y-4">
+                                        <input type="text" placeholder="品項 (例如：拿坡里披薩)" className="w-full p-5 rounded-3xl bg-slate-50 border-none font-bold" value={newExp.title} onChange={e => setNewExp({...newExp, title: e.target.value})} />
+                                        <div className="flex space-x-2">
+                                            <input type="number" placeholder="金額 €" className="w-1/2 p-5 rounded-3xl bg-slate-50 border-none font-bold" value={newExp.amount} onChange={e => setNewExp({...newExp, amount: e.target.value})} />
+                                            <select className="w-1/2 p-5 rounded-3xl bg-slate-50 border-none font-bold appearance-none" value={newExp.paidBy} onChange={e => setNewExp({...newExp, paidBy: e.target.value})}>
+                                                <option value="">由誰付款?</option>
+                                                {participants.map(p => <option key={p} value={p}>{p}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="p-4 border-2 border-dashed border-blue-100 rounded-[30px]">
+                                            <p className="text-[10px] font-black text-blue-400 mb-3 px-2 italic">跟誰分帳?</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {participants.map(p => (
+                                                    <button key={p} onClick={() => {
+                                                        const next = newExp.splitWith.includes(p) ? newExp.splitWith.filter(x => x !== p) : [...newExp.splitWith, p];
+                                                        setNewExp({...newExp, splitWith: next});
+                                                    }} className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${newExp.splitWith.includes(p) ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>{p}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <button onClick={handleAddExpense} className="w-full py-5 bg-blue-600 text-white rounded-[30px] font-black shadow-lg">儲存並同步所有人</button>
+                                    </div>
+                                </div>
+
+                                <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-xl">
+                                    <h3 className="text-sm font-black text-blue-400 uppercase tracking-widest mb-6 text-center">多人分帳結餘 (應收/應付)</h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {Object.entries(balances).map(([name, bal]) => (
+                                            <div key={name} className={`p-4 rounded-3xl border-2 ${bal >= 0 ? 'border-green-500/30 bg-green-500/10' : 'border-red-500/30 bg-red-500/10'}`}>
+                                                <p className="text-[10px] font-black opacity-60 uppercase">{name}</p>
+                                                <p className={`text-lg font-black ${bal >= 0 ? 'text-green-400' : 'text-red-400'}`}>{bal >= 0 ? '+' : ''}€{bal.toFixed(1)}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {expenses.map(e => (
+                                        <div key={e.id} className="bg-white p-5 rounded-3xl shadow-sm border border-blue-50 flex justify-between items-center">
+                                            <div>
+                                                <p className="font-black text-slate-800">{e.title}</p>
+                                                <p className="text-[10px] text-slate-400 font-bold">{e.paidBy} 支付 • 分給 {e.splitWith.length} 人</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="font-black text-blue-600 text-lg">€{e.amount}</p>
+                                                <button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', e.id))} className="text-xs text-red-300 font-bold hover:text-red-500 transition">刪除</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Prep Tab */}
+                        {activeTab === 'prep' && (
+                            <div className="space-y-6 animate-pop">
+                                {checklistData.map((cat, i) => (
+                                    <div key={i} className="bg-white p-8 rounded-[45px] shadow-sm border border-blue-50">
+                                        <h3 className="text-lg font-black text-blue-600 mb-6 flex items-center"><i data-lucide="layers" className="mr-2 w-5 h-5"></i> {cat.category}</h3>
+                                        <div className="space-y-4">
+                                            {cat.items.map((item, j) => (
+                                                <div key={j} className="flex items-center p-4 bg-slate-50 rounded-2xl group cursor-pointer hover:bg-blue-50 transition border border-transparent hover:border-blue-100">
+                                                    <div className="w-6 h-6 rounded-lg border-2 border-blue-200 mr-4 flex items-center justify-center group-hover:bg-blue-600 transition">
+                                                        <i data-lucide="check" className="w-4 h-4 text-white opacity-0 group-hover:opacity-100"></i>
+                                                    </div>
+                                                    <span className="font-bold text-slate-600 text-sm">{item}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Flights Tab */}
+                        {activeTab === 'flights' && (
+                            <div className="space-y-6 animate-pop">
+                                <div className="bg-white rounded-[45px] p-8 shadow-sm border border-blue-50">
+                                    <h2 className="text-xl font-black text-blue-600 mb-8 flex items-center"><i data-lucide="plane" className="mr-3 w-6 h-6"></i> 阿聯酋航班明細</h2>
+                                    <div className="space-y-6 text-sm font-bold text-slate-700">
+                                        <div className="bg-sky-50 p-6 rounded-[40px] border border-blue-100">
+                                            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4 text-center">去程 Outbound</p>
+                                            {flightInfo.outbound.map((f, i) => <div key={i} className="flex justify-between py-4 border-b border-blue-100 last:border-0"><span>{f.flight}</span><span>{f.time}</span><span>{f.route}</span></div>)}
+                                        </div>
+                                        <div className="bg-orange-50 p-6 rounded-[40px] border border-orange-100">
+                                            <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-4 text-center">回程 Inbound</p>
+                                            {flightInfo.inbound.map((f, i) => <div key={i} className="flex justify-between py-4 border-b border-orange-100 last:border-0"><span>{f.flight}</span><span>{f.time}</span><span>{f.route}</span></div>)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Spot Detail Modal */}
+                    {selectedSpot && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-md animate-in fade-in">
+                            <div className="bg-white w-full max-w-lg max-h-[85vh] rounded-[50px] overflow-hidden flex flex-col shadow-2xl relative border-t-[12px] border-blue-600">
+                                <button onClick={() => setSelectedSpot(null)} className="absolute top-8 right-8 w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:bg-red-50 transition shadow-sm z-10"><i data-lucide="x"></i></button>
+                                <div className="p-10 overflow-y-auto no-scrollbar">
+                                    <div className="flex items-center text-blue-500 mb-4 font-black uppercase tracking-[5px] text-[10px]"><i data-lucide="book-open" className="mr-2 w-4 h-4"></i>深度導覽故事館</div>
+                                    <h2 className="text-3xl font-black text-slate-800 mb-8">{selectedSpot.name}</h2>
+                                    <div className="relative mb-10 border-l-8 border-blue-100 pl-6 py-2">
+                                        <div className="font-bold text-sm text-slate-600 leading-relaxed text-justify space-y-4 italic">
+                                            {selectedSpot.history.split('。').map((s, i) => s ? <p key={i}>{s}。</p> : null)}
+                                        </div>
+                                    </div>
+                                    <div className="bg-orange-50 p-8 rounded-[40px] border-2 border-orange-100 text-center relative overflow-hidden">
+                                        <i data-lucide="sparkles" className="absolute top-2 right-2 text-orange-200 w-8 h-8 opacity-50"></i>
+                                        <p className="text-[10px] font-black text-orange-400 uppercase tracking-[3px] mb-3 leading-none">導遊叮嚀</p>
+                                        <p className="text-xs text-orange-800 font-bold leading-relaxed italic">「讀完這段歷史後，別忘了去『解謎挑戰』分頁大顯身手喔！」</p>
+                                    </div>
+                                </div>
+                                <div className="p-10 bg-slate-50 text-center border-t border-slate-100"><button onClick={() => setSelectedSpot(null)} className="px-16 py-5 bg-blue-600 text-white rounded-[30px] font-black shadow-2xl active:scale-95 transition-all">結束導覽</button></div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Status Bar */}
+                    <div className="fixed bottom-6 left-6 right-6 z-50 pointer-events-none">
+                        <div className="bg-white/95 backdrop-blur-xl border border-blue-100 p-6 rounded-[35px] shadow-2xl flex items-center justify-between max-w-sm mx-auto pointer-events-auto border-b-8 border-blue-600">
+                            <div className="flex items-center space-x-4">
+                                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black shadow-lg shadow-blue-200 text-xl tracking-tighter">導</div>
+                                <div><p className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1 tracking-widest">Status</p><p className="text-sm font-black text-blue-600 tracking-tight leading-none">雲端多人同步導覽模式 🎙️</p></div>
+                            </div>
+                            <span className="text-[10px] bg-green-100 text-green-600 px-3 py-1 rounded-full font-black animate-pulse">連線中</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
