@@ -1,0 +1,700 @@
+import React, { useState, useMemo } from 'react';
+import { 
+  MapPin, Calendar, Sun, Plane, Coffee, Wallet, ChevronDown, X, ArrowRight,
+  ExternalLink, Navigation2, Info, Wind, Heart, Eye, Palette, Sparkles, Timer,
+  CloudRain, Moon, Infinity, Anchor, Star, BookOpen, RefreshCw, LayoutGrid, Check,
+  Flower, Shirt, ThermometerSun
+} from 'lucide-react';
+
+const PARTICIPANTS = ['棟樑素女', '榮政美金', '惠心珮筑', '儒貞安心', '謙花蒔宇'];
+
+const FLIGHT_DATA = {
+  outbound: [
+    { id: 1, flight: 'EK387', route: 'TPE → DXB', time: '8/2 23:35 - 05:05 (+1)', info: '台北 T1 - 杜拜 T3', baggage: '30kg' },
+    { id: 2, flight: 'EK097', route: 'DXB → FCO', time: '8/2 09:10 - 13:25', info: '杜拜 T3 - 羅馬 T3', baggage: '30kg' },
+  ],
+  inbound: [
+    { id: 3, flight: 'EK098', route: 'FCO → DXB', time: '8/18 15:25 - 23:20', info: '羅馬 T3 - 杜拜 T3', baggage: '30kg' },
+    { id: 4, flight: 'EK366', route: 'DXB → TPE', time: '8/19 04:35 - 16:40', info: '杜拜 T3 - 台北 T1', baggage: '30kg' }
+  ]
+};
+
+const MOOD_STATION = [
+  { id: 'tree', title: "森林樹紋", theme: "慢慢穩住自己", icon: "🌲", breathing: "輕輕吸氣4秒，停1秒，再慢慢吐氣6秒 (重複3次)。", visual: "想像自己是一棵樹，腳踩在土地上，被穩穩地接住。", action: "一圈一圈慢慢畫，感受「穩」從手傳到心。", affirmation: "我現在有點快被情緒淹沒了，但我知道，孩子還在學習，我也在學習。我可以慢下來，不需要完美。我正在慢慢穩住，我不用急。", colors: "深綠、棕色、橄欖綠" },
+  { id: 'wave', title: "海浪流動", theme: "讓情緒慢慢流過", icon: "🌊", breathing: "吸氣的時候，感覺情緒進來；吐氣的時候，讓它離開。", visual: "想像情緒像海浪一樣，一波一波來，也一波一波退。", action: "順著線條流動，不需要控制每一筆。", affirmation: "我聽到那些話很刺耳，但那不是針對我。我可以先讓情緒流過。這一刻很難，但它會慢慢過去。", colors: "藍色、淺藍、灰藍" },
+  { id: 'feather', title: "羽毛輕柔", theme: "我可以放鬆一點點", icon: "🪶", breathing: "吸氣讓肩膀微微抬起；吐氣讓它慢慢放鬆。", visual: "觀想一根羽毛輕輕落下，很輕、很柔。", action: "試試用最輕的力氣畫畫，不給紙張壓力。", affirmation: "我好想掌控一切，但其實放鬆一點也沒關係。孩子也有他自己的節奏。放鬆不是放棄。", colors: "米白、淡粉、淺灰" },
+  { id: 'mountain', title: "山脈線條", theme: "溫柔也可以堅定", icon: "⛰️", breathing: "吸氣時讓背挺直；吐氣時讓臉放鬆。", visual: "觀想你是一座山，安靜但很穩定，誰也無法輕易晃動你。", action: "一層一層畫出你的界線，這也是你的保護色。", affirmation: "我可以溫柔，也可以堅定。設立界線是為了讓孩子更安心。溫柔與堅定可以同時存在。", colors: "深藍、灰色、土色" },
+  { id: 'flower', title: "花朵綻放", theme: "願意看見孩子的好", icon: "🌸", breathing: "吸氣想像花慢慢打開；吐氣時讓身體放鬆。", visual: "想像一片一片花瓣慢慢展開。", action: "每畫一片花瓣，想出一個孩子的小優點或小進步。", affirmation: "我也許太專注在問題了，其實孩子也有很多努力的地方。我選擇看見孩子正在發芽的地方。", colors: "粉紅、淡紫、鵝黃" },
+  { id: 'butterfly', title: "蝴蝶轉變", theme: "我正在慢慢變好", icon: "🦋", breathing: "深深吸一口氣，再慢慢吐出。", visual: "觀想你像蝴蝶正在蛻變，不著急，但轉變正在發生。", action: "一筆一畫讓線條自然延伸，感受生命的韌性。", affirmation: "我不是完美的媽媽，但我是真心愛孩子的媽媽，這就已經很重要了。不完美的我也值得被肯定。", colors: "紫色、藍紫色" },
+  { id: 'rain', title: "雨滴節奏", theme: "我可以承認我累了", icon: "🌧️", breathing: "吸氣自然正常，吐氣時，拉長多一點點。", visual: "想像每一滴雨，都帶走一點壓力。", action: "試著當每畫一滴雨滴時，就吐一口氣，排空負重。", affirmation: "我真的累了，我可以承認這份疲憊。也允許自己休息一下，照顧孩子前，我也值得被照顧。", colors: "藍色、紫色" },
+  { id: 'sun', title: "太陽光芒", theme: "擴散自己的力量", icon: "☀️", breathing: "吸氣想像「吸收溫暖」；吐氣想像「釋放壓力」。", visual: "想像一道光從心裡慢慢亮起來，如旭日初昇。", action: "從中心往外畫出光芒，像在擴散自己的力量與愛。", affirmation: "每個家庭都不同，我正在用我最適合的方式愛我的孩子。我走在屬於我們家的節奏上。", colors: "黃色、橘色、金色" },
+  { id: 'stone', title: "石頭紋路", theme: "先穩住我自己", icon: "🪨", breathing: "吸氣數1-2-3；吐氣數1-2-3-4-5。", visual: "想像自己像石頭一樣沈穩，不被外界紛擾晃動。", action: "慢慢描繪色塊，不急不快，感受筆尖的重力。", affirmation: "先穩住我自己，再去安撫孩子。我是這個空間的穩定力量。當我穩定，孩子就有依靠。", colors: "灰色、深棕、冷色調" },
+  { id: 'universe', title: "星星宇宙", theme: "事情可以慢慢看", icon: "🌌", breathing: "吸一口氣，感覺身體像氣球膨脹變大；吐氣時，將氣吐乾淨。", visual: "想像你站在宇宙裡，看著地球。所有煩惱的事都變得很小。", action: "一點一點仔細地畫著星星，那是希望在發光。", affirmation: "這件事放在長遠來看，其實沒那麼嚴重。不是每件事都需要現在解決。我可以選擇放鬆一點。", colors: "深藍、黑、點綴白或金" },
+  { id: 'vine', title: "藤蔓延伸", theme: "我們還在連結", icon: "🌿", breathing: "吸氣心中默數到4，停2秒，吐氣 1-2-3-4。", visual: "觀想藤蔓慢慢長，慢慢連回彼此。關係需要耐心滋養。", action: "一筆一畫讓線條自然延伸，感受生命的韌性。", affirmation: "今天我已經很努力了，我真的可以放過自己，明天再繼續就好。我已經做得夠好了。", colors: "淺藍、銀灰、淡紫" },
+  { id: 'moon', title: "月亮靜心", theme: "我可以放過自己", icon: "🌙", breathing: "吸氣心中默數到4，吐氣數到6秒，慢慢來。", visual: "觀想月光輕輕的包圍我，像被宇宙溫柔擁抱。", action: "慢慢上色，不急著完成，享受這個過程。", affirmation: "也許我們現在有距離，但關係是可以慢慢修復的，我願意重新連結。愛，是可以重新長出來的。", colors: "綠色、嫩綠、暖綠" }
+];
+
+const DAYS_DATA = [
+  {
+    day: 1, date: '8/2', title: '羅馬：永恆序幕', port: 'Rome, Italy', icon: '🏛️',
+    weather: '32°C 晴朗', dressCode: '牛仔或藍色',
+    spots: [
+      {
+        id: 'r1',
+        name: '特雷維噴泉 (Trevi Fountain)',
+        icon: '🌊',
+        image: 'https://images.unsplash.com/photo-1525874684015-58379d421a52?w=800',
+        tags: ['巴洛克', '許願', '羅馬必訪'],
+        mapUrl: 'https://www.google.com/maps/search/?api=1&query=Trevi+Fountain',
+        history: `特雷維噴泉建於1762年，由建築師尼古拉·薩爾維設計，是羅馬最壯觀的巴洛克噴泉，也是全球最著名的噴泉之一，高26公尺、寬49公尺，氣勢磅礡。
+主題是「海神波塞頓的凱旋歸來」：中央的海神尼普頓乘坐由飛馬與海怪拉動的貝殼戰車，象徵征服波濤洶湧的海洋。
+噴泉的水源來自羅馬古代水道「處女水道」(Aqua Virgo)，傳說公元前19年，一名少女告訴口渴的羅馬士兵泉水的位置，因此得名。這條水道至今仍在運作，已連續供水超過2000年！`,
+        guideTip: `📍 最佳時機：清晨6-8點人潮最少。🪙 投幣儀式：背對噴泉，用右手越過左肩投入一枚硬幣，代表「必將重返羅馬」。⚠️ 嚴格禁止：不可下水、不可在附近飲食，違者將被重罰！`,
+        riddles: [
+          { q: '特雷維噴泉的水源來自哪條古羅馬水道，至今已運作超過2000年？', opts: ['克勞狄亞水道', '處女水道 (Aqua Virgo)', '圖拉真水道', '瑪西亞水道'], ans: 1 },
+          { q: '背對噴泉投入一枚硬幣，代表什麼願望？', opts: ['愛情美滿', '財源廣進', '重返羅馬', '健康長壽'], ans: 2 },
+        ]
+      },
+      {
+        id: 'r2',
+        name: '西班牙廣場與階梯 (Piazza di Spagna)',
+        icon: '⛪',
+        image: 'https://images.unsplash.com/photo-1529260830199-42c24126f198?w=800',
+        tags: ['羅馬假期', '電影名景', '購物天堂'],
+        mapUrl: 'https://www.google.com/maps/search/?api=1&query=Piazza+di+Spagna',
+        history: `西班牙廣場的靈魂是那座壯觀的「三一台階」(Scalinata della Trinità dei Monti)。完成於1726年，共有135階，以三組分叉的階梯象徵三位一體（聖父、聖子、聖靈）。
+台階底部有著名的「破船噴泉」(Fontana della Barcaccia)，由貝尼尼的父親設計，造型是一艘半沈的破船，傳說靈感來自台伯河氾濫時的真實事件。`,
+        guideTip: `⚠️ 重要提醒：嚴禁在台階上坐下或飲食，違者罰款最高400歐元！🌸 春季台階上擺滿盆栽杜鵑花，美得令人屏息。`,
+        riddles: [
+          { q: '西班牙廣場的「三一台階」共有幾階？', opts: ['99階', '120階', '135階', '150階'], ans: 2 },
+          { q: '台階底部的「破船噴泉」是誰設計的？', opts: ['米開朗基羅', '皮耶特羅·貝尼尼', '拉斐爾', '達文西'], ans: 1 },
+        ]
+      },
+    ]
+  },
+  {
+    day: 2, date: '8/3', title: '梵諦岡與古羅馬', port: 'Rome, Italy', icon: '⛪',
+    weather: '33°C 酷暑', dressCode: '白色',
+    spots: [
+      {
+        id: 'v1',
+        name: '聖彼得大教堂與廣場',
+        icon: '⛪',
+        image: 'https://images.unsplash.com/photo-1531572753322-ad063cecc140?w=800',
+        tags: ['世界最小國', '天主教聖地', '米開朗基羅'],
+        mapUrl: 'https://www.google.com/maps/search/?api=1&query=St.+Peter%27s+Square+Vatican',
+        history: `梵諦岡是世界最小國家。聖彼得廣場由貝尼尼設計，橢圓形廣場被284根柱子環抱，象徵教堂張開雙臂擁抱信徒。
+聖彼得大教堂建造耗時120年，米開朗基羅設計的巨大穹頂高達136公尺。教堂內珍藏《聖殤》(La Pietà)——米開朗基羅23歲時的巔峰之作。`,
+        guideTip: `👗 嚴格著裝：必須蓋肩、蓋膝！🎯 尋找地面圓形石板「CENTRO DEL COLONNATO」，可見柱廊完美排成一排。🏛️ 登頂穹頂俯瞰羅馬，絕對值得！`,
+        riddles: [
+          { q: '聖彼得大教堂的穹頂主要由哪位大師設計？', opts: ['達文西', '米開朗基羅', '拉斐爾', '貝尼尼'], ans: 1 },
+          { q: '米開朗基羅創作《聖殤》雕像時幾歲？', opts: ['17歲', '23歲', '35歲', '45歲'], ans: 1 },
+        ]
+      },
+      {
+        id: 'v2',
+        name: '羅馬競技場 (13:30預約)',
+        icon: '⚔️',
+        image: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=800',
+        tags: ['古羅馬', '世界七大奇蹟', '角鬥士'],
+        mapUrl: 'https://www.google.com/maps/search/?api=1&query=Colosseum+Rome',
+        history: `建於公元72-80年，可容納5至8萬人。外牆使用多立克、愛奧尼克、科林斯三種柱式。
+地基下方有複雜的地下室系統(Hypogeum)，負責提升動物和角鬥士。關於大拇指手勢，歷史上「藏起拇指」代表赦免。`,
+        guideTip: `⏰ 務必準時13:30抵達！🌡️ 8月正午極熱，必帶大量飲水與帽子。📸 最佳角度：從對面的帕拉蒂尼山丘俯瞰。`,
+        riddles: [
+          { q: '羅馬競技場最多可容納多少名觀眾？', opts: ['約1萬', '約3萬', '約5-8萬', '約12萬'], ans: 2 },
+          { q: '在競技場決定生死的歷史正確手勢中，代表赦免的是？', opts: ['大拇指向下', '藏起拇指', '豎起拇指', '揮動手帕'], ans: 1 },
+        ]
+      },
+    ]
+  },
+  {
+    day: 3, date: '8/4', title: '登船啟航日', port: 'Civitavecchia', icon: '🚢',
+    weather: '31°C 晴時多雲', dressCode: '黑色',
+    spots: []
+  },
+  {
+    day: 4, date: '8/5', title: '那不勒斯與龐貝', port: 'Naples, Italy', icon: '🌋',
+    weather: '30°C 晴朗', dressCode: '條紋',
+    spots: [
+      {
+        id: 'n1',
+        name: '龐貝古城 (Pompeii)',
+        icon: '🏛️',
+        image: 'https://images.unsplash.com/photo-1595180429440-394982181515?w=800',
+        tags: ['世界遺產', '火山', '古羅馬生活'],
+        mapUrl: 'https://www.google.com/maps/search/?api=1&query=Pompeii+Archaeological+Park',
+        history: `公元79年維蘇威火山爆發，在18小時內將龐貝封存於火山灰下。這成了歷史的時間膠囊，保留了2000年前的麵包店、住宅、甚至路口的斑馬線。石膏人像還原了居民最後一刻的姿態。`,
+        guideTip: `🥾 必穿舒適運動鞋！全是石頭路面。🌞 遺址幾乎無遮蔭，防曬與飲水必備。🍕 來到那不勒斯，必吃正宗瑪格麗特披薩！`,
+        riddles: [
+          { q: '龐貝古城是在哪一年被掩埋的？', opts: ['公元前79年', '公元79年', '公元179年', '公元379年'], ans: 1 },
+          { q: '考古學家用什麼方法還原龐貝遺民的最後姿態？', opts: ['3D掃描', '注入石膏填充空洞', '陶土塑型', '樹脂灌注'], ans: 1 },
+        ]
+      }
+    ]
+  },
+  { day: 5, date: '8/6', title: '海上巡航 (Sea Day)', port: 'At Sea', icon: '🌊', weather: '28°C 海風', dressCode: '船上隨意穿' },
+  { day: 6, date: '8/6', title: '地中海藍調', port: 'At Sea', icon: '☀️', weather: '29°C 艷陽', dressCode: '船上隨意穿' },
+  {
+    day: 7, date: '8/7', title: '科托：峽灣古堡', port: 'Kotor, Montenegro', icon: '🏰',
+    weather: '32°C 晴朗', dressCode: '黃或橘色',
+    spots: [
+      {
+        id: 'k1',
+        name: '科托古城',
+        icon: '🏘️',
+        image: 'https://images.unsplash.com/photo-1570183181820-2f961e64906d?w=800',
+        tags: ['世界遺產', '中世紀', '貓咪天堂'],
+        mapUrl: 'https://www.google.com/maps/search/?api=1&query=Old+Town+Kotor+Montenegro',
+        history: `歐洲最南端的峽灣。古城被全長4.5公里的威尼斯城牆環繞。這裡是著名的「貓咪城市」，傳說貓咪是水手帶回來防止老鼠的功臣，至今全城視貓如珍寶。`,
+        guideTip: `🧗 登城牆需爬1350階，景觀絕美但費力。🐱 必買貓咪主題紀念品。💰 當地雖非歐盟但廣泛使用歐元。`,
+        riddles: [
+          { q: '科托灣是歐洲最南端的什麼地形？', opts: ['海灣', '峽灣', '三角洲', '礁湖'], ans: 1 },
+          { q: '科托古城的城牆長度大約是多少？', opts: ['1.5公里', '2.5公里', '4.5公里', '8公里'], ans: 2 },
+        ]
+      }
+    ]
+  },
+  {
+    day: 8, date: '8/8', title: '科孚島：希臘之綠', port: 'Corfu, Greece', icon: '🌿',
+    weather: '31°C 晴朗', dressCode: '牛仔或藍色',
+    spots: [
+      {
+        id: 'c1',
+        name: '阿奇里翁皇宮 (Achilleion Palace)',
+        icon: '🏛️',
+        image: 'https://images.unsplash.com/photo-1543323490-a2948719d20c?w=800',
+        tags: ['茜茜公主', '希臘神話', '宮殿花園'],
+        history: `奧匈帝國伊莉莎白皇后（茜茜公主）逃離維也納宮廷煩悶而建造的私人聖所。她崇拜英雄阿基里斯，花園中有著名的雕像「垂死的阿基里斯」。`,
+        guideTip: `🌹 重點是露天花園！可以俯瞰愛奧尼亞海絕景。🍋 必買特產金桔利口酒 (Kumquat)。`,
+        riddles: [
+          { q: '誰是這座皇宮的建造者？', opts: ['維多利亞女王', '茜茜公主', '瑪麗王后', '凱薩琳大帝'], ans: 1 },
+          { q: '希臘英雄阿基里斯的弱點在哪裡？', opts: ['左眼', '心臟', '腳踝', '頸部'], ans: 2 },
+        ]
+      }
+    ]
+  },
+  {
+    day: 9, date: '8/9', title: '奧林匹亞：聖火源', port: 'Katakolon, Greece', icon: '🔥',
+    weather: '34°C 酷熱', dressCode: '白色',
+    spots: [
+      {
+        id: 'o1',
+        name: '古代奧林匹亞遺跡',
+        icon: '🏟️',
+        image: 'https://images.unsplash.com/photo-1574025061616-018f6cc76c27?w=800',
+        tags: ['奧運發源地', '宙斯神廟', '聖火'],
+        history: `古代奧運聖地。宙斯神廟曾供奉世界七大奇蹟之一的宙斯金像。擁有古代192公尺直線跑道，奧運聖火至今仍在赫拉神廟前點燃。`,
+        guideTip: `🏃 必做：在2800年前的古代跑道跑一圈！🏛️ 博物館收藏了「赫爾墨斯與嬰兒酒神」雕像，非常值得看。`,
+        riddles: [
+          { q: '古代奧運聖火是用什麼方式點燃的？', opts: ['鑽木取火', '凹面鏡聚焦太陽', '祭壇長明火', '閃電引火'], ans: 1 },
+          { q: '古代跑道的長度是？', opts: ['100公尺', '150公尺', '192公尺', '400公尺'], ans: 2 },
+        ]
+      }
+    ]
+  },
+  {
+    day: 10, date: '8/10', title: '西西里：火山劇場', port: 'Catania, Italy', icon: '🎭',
+    weather: '33°C 晴朗', dressCode: '綠色',
+    spots: [
+      {
+        id: 's1',
+        name: '陶爾米納希臘劇場',
+        icon: '🏛️',
+        image: 'https://images.unsplash.com/photo-1555990543-094392120e7d?w=800',
+        tags: ['希臘劇場', '埃特納火山', '最美劇場'],
+        history: `建於公元前3世紀。背景是歐洲最高活火山「埃特納火山」與愛奧尼亞海，被譽為全球最美天然舞台佈景。羅馬時代曾改裝用於角鬥。`,
+        guideTip: `📸 拍火山煙霧與古蹟石柱的絕佳時間是清晨。🍦 必吃西西里特色冰沙 (Granita) 配牛角包。`,
+        riddles: [
+          { q: '劇場背後的著名活火山名字是？', opts: ['維蘇威', '斯特龍博利', '埃特納', '武爾卡諾'], ans: 2 },
+          { q: '劇場原本是由哪個民族建造的？', opts: ['羅馬人', '希臘人', '摩爾人', '腓尼基人'], ans: 1 },
+        ]
+      }
+    ]
+  },
+  {
+    day: 11, date: '8/11', title: '巴勒莫：混血首府', port: 'Palermo, Italy', icon: '🍋',
+    weather: '32°C 晴朗', dressCode: '紅粉色系',
+    spots: [
+      {
+        id: 'p1',
+        name: '巴勒莫主教座堂',
+        icon: '⛪',
+        image: 'https://images.unsplash.com/photo-1584941916362-e6e7f139d15c?w=800',
+        tags: ['阿拉伯諾曼式', '混血建築', '歷史感'],
+        history: `這座建築展現了西西里的多元歷史：先後是羅馬神廟、清真寺、天主教堂。外牆甚至刻有阿拉伯文《可蘭經》銘文裝飾。`,
+        guideTip: `🕌 仔細尋找外牆的阿拉伯銘文！🥘 必逛傳統市場 Ballarò 吃炸飯球。🍊 必喝鮮榨血橙汁。`,
+        riddles: [
+          { q: '巴勒莫主教座堂外牆刻有哪種語言銘文？', opts: ['希臘文', '拉丁文', '阿拉伯文', '諾曼文'], ans: 2 },
+        ]
+      }
+    ]
+  },
+  {
+    day: 12, date: '8/12', title: '2026 日全食：奇蹟', port: 'Total Eclipse', icon: '🌑',
+    weather: '27°C 日食微涼', dressCode: '船上隨意穿',
+    spots: [
+      {
+        id: 'e1',
+        name: '2026年日全食觀測 (2026/8/12)',
+        icon: '🕶️',
+        image: 'https://images.unsplash.com/photo-1506466010722-395aa2bef877?w=800',
+        tags: ['世紀奇景', '日冕', '鑽石環'],
+        history: `千年奇蹟。月球將精準遮擋太陽，白晝會變成黃昏，氣溫突降，星星在天空閃爍。可觀測到銀白色「日冕」與絕美「鑽石環」。`,
+        guideTip: `🕶️ 偏食期必戴認證眼鏡！🌑 唯有全食那2分鐘可摘眼鏡。🌡️ 預備外套，氣溫會降3-5度。`,
+        riddles: [
+          { q: '「貝利珠」現象是由什麼造成的？', opts: ['太陽黑子', '月球山谷間洩出的陽光', '大氣折射', '海洋反光'], ans: 1 },
+          { q: '全食期間可看見太陽哪一部分？', opts: ['黑點', '銀白色日冕', '藍色光芒', '綠色火焰'], ans: 1 },
+        ]
+      }
+    ]
+  },
+  { day: 13, date: '8/13', title: '海上沈澱日', port: 'At Sea', icon: '🌊', weather: '28°C 晴', dressCode: '船上隨意穿' },
+  {
+    day: 14, date: '8/14', title: '直布羅陀：大英門戶', port: 'Gibraltar, UK', icon: '🐒',
+    weather: '26°C 舒適多雲', dressCode: '灰色',
+    spots: [
+      {
+        id: 'g1',
+        name: '直布羅陀巨巖',
+        icon: '🧗',
+        image: 'https://images.unsplash.com/photo-1549488344-1f9b8d2bd1f3?w=800',
+        tags: ['英國領地', '野生獼猴', '海克力斯之柱'],
+        history: `426公尺高石灰岩。古希臘人稱為「海克力斯之柱」。這裡是地中海唯一的大西洋出口，擁有歐洲唯一野生獼猴群——巴巴里獼猴。`,
+        guideTip: `🐒 小心！獼猴會搶食與包包。🚠 坐纜車登頂可同時看西班牙與摩洛哥。🛍️ 這裡是免稅購物區。`,
+        riddles: [
+          { q: '直布羅陀的獼猴種類名稱是？', opts: ['日本獼猴', '巴巴里獼猴', '恆河猴', '長尾猴'], ans: 1 },
+          { q: '古希臘人將直布羅陀巨巖稱為什麼？', opts: ['阿特拉斯之門', '海克力斯之柱', '宙斯聖壇', '奧林匹斯山'], ans: 1 },
+        ]
+      }
+    ]
+  },
+  {
+    day: 15, date: '8/15', title: '阿利坎特：白海岸', port: 'Alicante, Spain', icon: '🥘',
+    weather: '32°C 晴熱', dressCode: '咖啡或卡其色',
+    spots: [
+      {
+        id: 'a1',
+        name: '聖塔芭芭拉城堡',
+        icon: '🏰',
+        image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
+        tags: ['摩爾城堡', '海景', '海鮮燉飯'],
+        history: `矗立於166公尺岩頂。最初由摩爾人建造，守護這片「白海岸」。這裡是瓦倫西亞地區，是正宗西班牙海鮮燉飯(Paella)發源地。`,
+        guideTip: `🍚 必吃燉飯底部微焦的「Socarrat」（鍋巴）。🚶 可搭乘隧道內的快速電梯直抵山頂。`,
+        riddles: [
+          { q: '阿利坎特位於西班牙哪個著名的海岸線？', opts: ['太陽海岸', '白海岸', '布拉瓦海岸', '銀色海岸'], ans: 1 },
+          { q: '海鮮燉飯底部微焦的鍋巴叫什麼？', opts: ['Croqueta', 'Socarrat', 'Chorizo', 'Tortilla'], ans: 1 },
+        ]
+      }
+    ]
+  },
+  {
+    day: 16, date: '8/16', title: '巴塞隆納：高第殿堂', port: 'Barcelona, Spain', icon: '🎨',
+    weather: '30°C 晴朗', dressCode: '白色',
+    spots: [
+      {
+        id: 'b1',
+        name: '聖家堂 (Sagrada Família)',
+        icon: '⛪',
+        image: 'https://images.unsplash.com/photo-1511527661048-7fe73d85e9a4?w=800',
+        tags: ['高第遺作', '2026完工', '上帝的曲線'],
+        history: `人類建築史漫長的工程。2026年是高第逝世百週年，也是預定完工年。高第名言「直線屬於人類，曲線屬於上帝」，建築內充滿自然有機結構。`,
+        guideTip: `🎫 必須提前數週預約！⚠️ 蘭布拉大道扒手極多，包包必背胸前。🥩 必吃 Jamón 伊比利火腿。`,
+        riddles: [
+          { q: '高第說「直線屬於人類，曲線屬於____」？', opts: ['自然', '上帝', '宇宙', '音樂'], ans: 1 },
+          { q: '高第是如何去世的？', opts: ['工地意外', '被電車撞倒', '睡夢離世', '內戰遇難'], ans: 1 },
+        ]
+      }
+    ]
+  },
+  { day: 17, date: '8/17', title: '歸途海上巡航', port: 'Mediterranean', icon: '✨', weather: '28°C 晴', dressCode: '船上隨意穿' },
+  { day: 18, date: '8/18', title: '平安賦歸', port: 'Rome → Home', icon: '✈️', weather: '28°C 晴', dressCode: '船上隨意穿' }
+];
+
+const App = () => {
+  const [tab, setTab] = useState('itinerary');
+  const [expandedDay, setExpandedDay] = useState(null);
+  const [selectedSpot, setSelectedSpot] = useState(null);
+  const [solvedRiddles, setSolvedRiddles] = useState({});
+  const [expenses, setExpenses] = useState([]);
+  const [exchangeRate, setExchangeRate] = useState(35.5);
+  const [moodMode, setMoodMode] = useState('draw');
+  const [drawnCard, setDrawnCard] = useState(null);
+  const [isShuffling, setIsShuffling] = useState(false);
+  const [newExp, setNewExp] = useState({ title: '', amount: '', paidBy: '棟樑素女', splitWith: PARTICIPANTS });
+
+  const totalRiddles = useMemo(() => {
+    return DAYS_DATA.reduce((acc, day) => acc + (day.spots?.reduce((sAcc, s) => sAcc + (s.riddles?.length || 0), 0) || 0), 0);
+  }, []);
+
+  const solvedCount = useMemo(() => Object.keys(solvedRiddles).length, [solvedRiddles]);
+
+  const balances = useMemo(() => {
+    const b = {}; PARTICIPANTS.forEach(p => b[p] = 0);
+    expenses.forEach(e => {
+      const share = e.amount / e.splitWith.length;
+      b[e.paidBy] += (e.amount - (e.splitWith.includes(e.paidBy) ? share : 0));
+      e.splitWith.forEach(p => { if(p !== e.paidBy) b[p] -= share; });
+    });
+    return b;
+  }, [expenses]);
+
+  const handleAnswer = (sid, idx, ans) => {
+    setSolvedRiddles(prev => ({ ...prev, [`${sid}-${idx}`]: ans }));
+  };
+
+  const addExpense = () => {
+    if (!newExp.title || !newExp.amount || newExp.splitWith.length === 0) return;
+    setExpenses(prev => [...prev, { ...newExp, amount: parseFloat(newExp.amount), id: Date.now() }]);
+    setNewExp({ ...newExp, title: '', amount: '' });
+  };
+
+  const drawRandomMood = () => {
+    setIsShuffling(true);
+    setDrawnCard(null);
+    setTimeout(() => {
+      const randomIndex = Math.floor(Math.random() * MOOD_STATION.length);
+      setDrawnCard(MOOD_STATION[randomIndex]);
+      setIsShuffling(false);
+    }, 1500);
+  };
+
+  const navItems = [
+    { id: 'itinerary', icon: MapPin, label: '行程' },
+    { id: 'knowledge', icon: Sun, label: '知識' },
+    { id: 'flights', icon: Plane, label: '航班' },
+    { id: 'mood', icon: Coffee, label: '心情' },
+    { id: 'wallet', icon: Wallet, label: '帳本' }
+  ];
+
+  return (
+    <div className="max-w-[500px] mx-auto pb-24 min-h-screen relative font-sans text-[#4a5568] bg-[#fffcf5] overflow-x-hidden selection:bg-[#9de3d0]/30">
+      <div className="fixed inset-0 pointer-events-none opacity-40">
+        <div className="absolute top-[-10%] -left-[20%] w-96 h-96 bg-[#9de3d0] rounded-full blur-[100px]"></div>
+        <div className="absolute bottom-[10%] -right-[20%] w-80 h-80 bg-[#ffd3b6] rounded-full blur-[100px]"></div>
+      </div>
+
+      <header className="px-6 pt-10 text-center relative z-10">
+        <div className="w-[100px] h-[100px] rounded-full mx-auto mb-6 relative bg-white shadow-xl border-4 border-[#9de3d0] flex items-center justify-center overflow-hidden">
+           <Sun className="w-14 h-14 text-[#ffaaa5] animate-pulse" />
+        </div>
+        <h1 className="font-serif text-2xl font-black text-[#2d3748] mb-1">2026 地中海日全食</h1>
+        <p className="text-[10px] tracking-[4px] font-bold uppercase text-[#ff8b94] mb-8">watercolor Edition</p>
+        
+        <div className="bg-white/80 border-2 border-dashed border-[#9de3d0] p-4 rounded-3xl shadow-sm mb-8 mx-4">
+          <div className="flex justify-between items-center mb-2 text-[10px] font-black text-[#718096] uppercase tracking-widest">
+            <span className="flex items-center gap-1"><Star className="w-3 h-3 text-[#ffaaa5]" /> 導覽解謎進度</span>
+            <span className="text-[#ff8b94]">{solvedCount}/{totalRiddles}</span>
+          </div>
+          <div className="h-2 bg-[#f7fafc] rounded-full overflow-hidden border border-gray-100">
+            <div className="h-full bg-gradient-to-r from-[#9de3d0] to-[#a8e6cf] transition-all duration-1000" style={{ width: `${totalRiddles > 0 ? (solvedCount/totalRiddles)*100 : 0}%` }} />
+          </div>
+        </div>
+      </header>
+
+      <main className="px-5 relative z-10">
+        {tab === 'itinerary' && (
+          <div className="space-y-4 pb-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {DAYS_DATA.map((day, idx) => (
+              <div key={idx} className="bg-white/90 border-2 border-white rounded-[2rem] overflow-hidden shadow-sm transition-all hover:shadow-md">
+                <div className="p-4 flex items-center gap-4 cursor-pointer" onClick={() => setExpandedDay(expandedDay === idx ? null : idx)}>
+                  <div className="w-12 h-12 rounded-2xl bg-[#9de3d0]/20 flex flex-col items-center justify-center border-2 border-white">
+                    <span className="text-[7px] font-black text-[#4eb3a2]">AUG</span>
+                    <span className="font-serif text-xl font-bold text-[#2d3748]">{day.date.split('/')[1]}</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[9px] font-black text-[#a0aec0] uppercase tracking-tighter">{day.port}</p>
+                    <h3 className="text-sm font-black text-[#4a5568] truncate">{day.icon} {day.title}</h3>
+                  </div>
+                  <ChevronDown className={`w-5 h-5 text-[#cbd5e0] transition-transform ${expandedDay === idx ? 'rotate-180 text-[#ff8b94]' : ''}`} />
+                </div>
+                {expandedDay === idx && (
+                  <div className="px-5 pb-5 pt-1 space-y-4 border-t border-dashed border-[#edf2f7]">
+                    <div className="grid grid-cols-2 gap-2">
+                       <div className="bg-[#9de3d0]/10 p-3 rounded-2xl flex flex-col gap-1 border-2 border-white shadow-sm">
+                          <p className="text-[8px] font-black text-[#4eb3a2] uppercase tracking-widest flex items-center gap-1"><ThermometerSun className="w-3 h-3" /> 今日天氣</p>
+                          <p className="text-[11px] font-bold text-[#4a5568]">{day.weather || '晴朗 28°C'}</p>
+                       </div>
+                       <div className="bg-[#ffaaa5]/10 p-3 rounded-2xl flex flex-col gap-1 border-2 border-white shadow-sm">
+                          <p className="text-[8px] font-black text-[#ff8b94] uppercase tracking-widest flex items-center gap-1"><Shirt className="w-3 h-3" /> Dress Code</p>
+                          <p className="text-[11px] font-bold text-[#4a5568]">{day.dressCode || '隨意穿'}</p>
+                       </div>
+                    </div>
+                    {day.spots?.map(spot => (
+                      <div key={spot.id} className="flex gap-2">
+                        <button className="flex-1 bg-[#f7fafc] p-3.5 rounded-[1.5rem] flex items-center gap-3 border-2 border-white shadow-sm hover:bg-white transition-all text-left" onClick={() => setSelectedSpot(spot)}>
+                          <span className="text-2xl">{spot.icon}</span>
+                          <div className="flex-1">
+                            <p className="text-xs font-black text-[#2d3748]">{spot.name}</p>
+                            <div className="flex gap-1 mt-1 flex-wrap">
+                               {spot.tags?.slice(0,3).map(t => <span key={t} className="text-[8px] px-1.5 py-0.5 bg-white rounded-md border border-gray-100 text-[#718096]">#{t}</span>)}
+                            </div>
+                          </div>
+                        </button>
+                        {spot.mapUrl && (
+                          <a href={spot.mapUrl} target="_blank" rel="noreferrer" className="w-12 bg-[#9de3d0]/20 rounded-[1.5rem] flex items-center justify-center border-2 border-white text-[#4eb3a2] shadow-sm">
+                            <Navigation2 className="w-5 h-5" />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                    {(!day.spots || day.spots.length === 0) && <p className="text-xs text-[#a0aec0] italic py-4 text-center bg-[#f7fafc] rounded-2xl border-2 border-white">🌊 海上巡航日，享受悠閒甲板時光。</p>}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tab === 'knowledge' && (
+          <div className="space-y-6 pb-10 text-center animate-in fade-in duration-500">
+            <Sun className="w-12 h-12 mx-auto text-[#ff8b94] mb-4" />
+            <h2 className="font-serif text-xl font-black mb-2 text-[#2d3748]">日全食科學與奇觀</h2>
+            <div className="bg-white/80 p-6 rounded-[2.5rem] border-2 border-white text-left space-y-4 shadow-sm">
+              <p className="text-xs text-[#718096] leading-relaxed">
+                <span className="font-black text-[#2d3748]">🌕 日全食成因：</span>
+                當月球運行到太陽與地球之間，且三者精確在一條直線上時，月球會完全遮擋住太陽。
+              </p>
+              <p className="text-xs text-[#718096] leading-relaxed">
+                <span className="font-black text-[#2d3748]">🕶️ 觀測安全：</span>
+                除了全食的那2分鐘可摘眼鏡，其餘時間嚴禁裸眼直視太陽！以免對視網膜造成永久傷害。
+              </p>
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                 <div className="bg-[#f7fafc] p-3 rounded-2xl border border-gray-100">
+                   <p className="text-[10px] font-black text-[#4eb3a2]">💎 鑽石環</p>
+                   <p className="text-[9px] text-[#a0aec0]">全食瞬間出現的一顆明亮光點</p>
+                 </div>
+                 <div className="bg-[#f7fafc] p-3 rounded-2xl border border-gray-100">
+                   <p className="text-[10px] font-black text-[#4eb3a2]">📿 貝利珠</p>
+                   <p className="text-[9px] text-[#a0aec0]">透過月球山谷洩出的珍珠狀光芒</p>
+                 </div>
+              </div>
+            </div>
+            <button onClick={() => setTab('itinerary')} className="text-xs font-black text-[#ff8b94] underline">至行程 Day 12 查看詳細觀測建議</button>
+          </div>
+        )}
+
+        {tab === 'flights' && (
+          <div className="space-y-4 pb-10 animate-in slide-in-from-left-4 duration-500">
+            <div className="text-center mb-6">
+              <Plane className="w-10 h-10 text-[#ff8b94] mx-auto mb-2" />
+              <h2 className="text-lg font-black text-[#2d3748]">航班資訊 Emirates</h2>
+              <p className="text-xs text-[#a0aec0] mt-1">行李額度 30kg，請提前辦理線上登機</p>
+            </div>
+            <div className="space-y-4">
+              <p className="text-[10px] font-black text-[#4eb3a2] uppercase ml-2 tracking-widest">✈️ 出發路徑</p>
+              {FLIGHT_DATA.outbound.map(f => (
+                <div key={f.id} className="bg-white/80 border-2 border-white p-5 rounded-[2rem] shadow-sm">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-sm font-black text-[#2d3748]">{f.flight}</h4>
+                    <span className="text-[10px] bg-[#f7fafc] px-2 py-0.5 rounded-lg border font-bold text-[#718096]">🧳 {f.baggage}</span>
+                  </div>
+                  <p className="text-[11px] font-bold text-[#ff8b94] uppercase mb-2">{f.route}</p>
+                  <p className="text-[11px] font-black text-[#4a5568] bg-[#f7fafc] p-2 rounded-xl border border-gray-50">{f.time}</p>
+                  <p className="text-[10px] text-[#718096] mt-3 pt-3 border-t border-dashed border-[#edf2f7]">📍 {f.info}</p>
+                </div>
+              ))}
+              
+              <p className="text-[10px] font-black text-[#ff8b94] uppercase ml-2 tracking-widest mt-6">🏠 返程路徑</p>
+              {FLIGHT_DATA.inbound.map(f => (
+                <div key={f.id} className="bg-white/80 border-2 border-white p-5 rounded-[2rem] shadow-sm">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-sm font-black text-[#2d3748]">{f.flight}</h4>
+                    <span className="text-[10px] bg-[#f7fafc] px-2 py-0.5 rounded-lg border font-bold text-[#718096]">🧳 {f.baggage}</span>
+                  </div>
+                  <p className="text-[11px] font-bold text-[#ff8b94] uppercase mb-2">{f.route}</p>
+                  <p className="text-[11px] font-black text-[#4a5568] bg-[#f7fafc] p-2 rounded-xl border border-gray-50">{f.time}</p>
+                  <p className="text-[10px] text-[#718096] mt-3 pt-3 border-t border-dashed border-[#edf2f7]">📍 {f.info}</p>
+                </div>
+              ))}
+            </div>
+            <div className="bg-white/50 p-5 rounded-[2rem] border-2 border-dashed border-gray-200 mt-6">
+               <p className="text-[10px] font-black text-[#718096] uppercase mb-2">📋 登機提醒</p>
+               <ul className="text-[10px] text-[#a0aec0] space-y-1 list-disc ml-4 font-medium">
+                 <li>建議起飛前 3 小時抵達機場</li>
+                 <li>液體容器不可超過 100ml 並需裝入透明夾鏈袋</li>
+                 <li>長途飛行建議穿著鬆緊適度的衣物並多喝水</li>
+               </ul>
+            </div>
+          </div>
+        )}
+
+        {tab === 'mood' && (
+          <div className="space-y-6 pb-10">
+            <div className="text-center mb-4 relative">
+              <Coffee className="w-10 h-10 text-[#4eb3a2] mx-auto mb-2" />
+              <h2 className="text-xl font-black text-[#2d3748]">心情加油站</h2>
+              <div className="flex justify-center gap-3 mt-5">
+                <button onClick={() => setMoodMode('draw')} className={`px-5 py-2 rounded-full text-[10px] font-black border-2 transition-all ${moodMode === 'draw' ? 'bg-[#9de3d0] text-white border-[#9de3d0] shadow-md' : 'bg-white text-[#a0aec0] border-gray-100'}`}>抽張加油卡</button>
+                <button onClick={() => setMoodMode('all')} className={`px-5 py-2 rounded-full text-[10px] font-black border-2 transition-all ${moodMode === 'all' ? 'bg-[#ffaaa5] text-white border-[#ffaaa5] shadow-md' : 'bg-white text-[#a0aec0] border-gray-100'}`}>全部瀏覽</button>
+              </div>
+            </div>
+
+            {moodMode === 'draw' ? (
+              <div className="flex flex-col items-center">
+                {!drawnCard && !isShuffling ? (
+                  <button onClick={drawRandomMood} className="w-64 h-96 bg-white rounded-[3rem] border-4 border-dashed border-[#9de3d0] flex flex-col items-center justify-center gap-4 shadow-xl hover:scale-105 transition-all">
+                     <Sparkles className="w-12 h-12 text-[#9de3d0] animate-pulse" />
+                     <p className="font-serif text-lg font-black text-[#2d3748]">點擊獲取能量</p>
+                  </button>
+                ) : isShuffling ? (
+                  <div className="h-96 flex flex-col items-center justify-center gap-4">
+                    <RefreshCw className="w-12 h-12 text-[#9de3d0] animate-spin" />
+                    <p className="text-sm font-black text-[#4eb3a2]">能量補給中...</p>
+                  </div>
+                ) : (
+                  <div className="bg-white border-4 border-[#9de3d0] p-8 rounded-[3rem] relative shadow-2xl animate-in zoom-in-95 w-full">
+                     <div className="flex items-center gap-4 mb-6">
+                        <span className="text-4xl bg-[#f7fafc] w-16 h-16 flex items-center justify-center rounded-2xl border-2 border-white shadow-sm">{drawnCard.icon}</span>
+                        <div>
+                           <h4 className="text-xl font-black text-[#2d3748]">{drawnCard.title}</h4>
+                           <p className="text-xs text-[#4eb3a2] font-black">| {drawnCard.theme}</p>
+                        </div>
+                     </div>
+                     <div className="space-y-5">
+                        <div className="flex gap-3">
+                           <Wind className="w-5 h-5 text-blue-300 shrink-0 mt-1" />
+                           <div><p className="text-[10px] font-black text-blue-400 uppercase">呼吸練習</p><p className="text-sm text-[#4a5568] leading-relaxed font-medium">{drawnCard.breathing}</p></div>
+                        </div>
+                        <div className="flex gap-3">
+                           <Eye className="w-5 h-5 text-purple-300 shrink-0 mt-1" />
+                           <div><p className="text-[10px] font-black text-purple-400 uppercase">心靈觀想</p><p className="text-sm text-[#4a5568] leading-relaxed font-medium">{drawnCard.visual} {drawnCard.action}</p></div>
+                        </div>
+                        <div className="bg-[#ff8b94]/5 p-5 rounded-2xl border-2 border-white shadow-inner">
+                           <p className="text-[10px] font-black text-[#ff8b94] uppercase mb-2">正向肯定語</p>
+                           <p className="text-base font-serif font-black italic text-[#2d3748] leading-relaxed">「{drawnCard.affirmation}」</p>
+                        </div>
+                     </div>
+                     <button onClick={drawRandomMood} className="w-full mt-8 py-4 bg-[#9de3d0] text-white rounded-2xl font-black text-sm shadow-md">再次抽卡</button>
+                     <button onClick={() => setDrawnCard(null)} className="w-full mt-4 text-[10px] text-[#a0aec0] font-black uppercase text-center">關閉</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="grid gap-4 pb-10">
+                {MOOD_STATION.map(m => (
+                  <div key={m.id} className="bg-white/90 border-2 border-white p-6 rounded-[2.5rem] shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-3xl">{m.icon}</span>
+                      <h4 className="text-base font-black text-[#2d3748]">{m.title}</h4>
+                    </div>
+                    <p className="text-xs text-[#4a5568] italic font-black">「{m.affirmation}」</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === 'wallet' && (
+          <div className="space-y-6 pb-10 animate-in slide-in-from-right-4 duration-500">
+            <div className="bg-white border-2 border-[#9de3d0] p-6 rounded-[2.5rem] shadow-sm">
+              <div className="flex justify-between items-center mb-6">
+                <p className="text-[11px] font-black text-[#4eb3a2] uppercase tracking-widest flex items-center gap-2"><Wallet className="w-4 h-4" /> 共同支出與分帳</p>
+                <div className="flex items-center gap-1.5 bg-[#f7fafc] px-3 py-1 rounded-full border">
+                   <span className="text-[10px] font-black text-[#a0aec0]">€1=NT$</span>
+                   <input type="number" className="w-8 bg-transparent outline-none font-black text-[#ff8b94] text-xs" value={exchangeRate} onChange={e => setExchangeRate(parseFloat(e.target.value) || 35.5)} />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <input className="w-full bg-[#f7fafc] border-2 border-white rounded-2xl p-4 text-sm" placeholder="消費項目（如：海鮮燉飯）" value={newExp.title} onChange={e => setNewExp({...newExp, title: e.target.value})} />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <span className="absolute left-4 top-4 text-xs font-black text-[#4eb3a2]">€</span>
+                    <input type="number" className="w-full bg-[#f7fafc] border-2 border-white rounded-2xl p-4 pl-8 text-sm" placeholder="金額" value={newExp.amount} onChange={e => setNewExp({...newExp, amount: e.target.value})} />
+                  </div>
+                  <select className="w-full bg-[#f7fafc] border-2 border-white rounded-2xl p-4 text-xs font-black" value={newExp.paidBy} onChange={e => setNewExp({...newExp, paidBy: e.target.value})}>
+                    {PARTICIPANTS.map(p => <option key={p} value={p}>{p} 付款</option>)}
+                  </select>
+                </div>
+                <button onClick={addExpense} className="w-full py-4 rounded-2xl bg-[#9de3d0] text-white font-black text-sm shadow-md active:scale-95 transition-all">儲存消費記錄</button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {PARTICIPANTS.map(p => (
+                <div key={p} className={`p-5 rounded-[2rem] border-2 border-white shadow-sm ${balances[p] >= 0 ? 'bg-green-50/20 text-green-600' : 'bg-red-50/20 text-red-400'}`}>
+                   <p className="text-[10px] font-black opacity-60 uppercase">{p}</p>
+                   <p className="text-xl font-serif font-black">{balances[p] >= 0 ? '+' : ''}{balances[p].toFixed(1)}€</p>
+                   <p className="text-[9px] font-black opacity-40">≈ NT$ {Math.round(balances[p] * exchangeRate).toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </main>
+
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-gray-100 px-4 py-3">
+        <div className="max-w-[500px] mx-auto flex justify-around items-center">
+          {navItems.map(item => (
+            <button key={item.id} onClick={() => setTab(item.id)} className={`flex flex-col items-center p-2 transition-all ${tab === item.id ? 'text-[#ff8b94] scale-110' : 'text-[#cbd5e0]'}`}>
+              <item.icon className="w-5 h-5" />
+              <span className="text-[8px] font-black mt-1 uppercase tracking-tighter">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {selectedSpot && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-[#4a5568]/40 backdrop-blur-md px-4" onClick={() => setSelectedSpot(null)}>
+          <div className="w-full max-w-[500px] bg-white rounded-t-[3.5rem] overflow-hidden border-t-4 border-[#9de3d0] shadow-2xl flex flex-col" style={{maxHeight:'92vh'}} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 pt-5 pb-2 shrink-0">
+              <div className="w-12 h-1.5 bg-[#edf2f7] rounded-full mx-auto" />
+              <button className="p-2 bg-[#f7fafc] rounded-full text-[#ff8b94] absolute right-5" onClick={() => setSelectedSpot(null)}><X className="w-5 h-5" /></button>
+            </div>
+            
+            <div className="overflow-y-auto flex-1 px-6 pb-12 space-y-6">
+              <div className="relative rounded-3xl overflow-hidden shadow-inner bg-gray-100" style={{height:'180px'}}>
+                {selectedSpot.image && <img src={selectedSpot.image} className="w-full h-full object-cover opacity-90" alt={selectedSpot.name} />}
+                <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent" />
+                <div className="absolute bottom-4 left-4 right-4">
+                   <h2 className="font-serif text-xl font-black text-[#2d3748] leading-tight">{selectedSpot.icon} {selectedSpot.name}</h2>
+                   <div className="flex flex-wrap gap-1 mt-1">
+                      {selectedSpot.tags?.map(t => <span key={t} className="text-[8px] bg-white/80 px-1.5 py-0.5 rounded-md border border-gray-100 text-[#718096]">#{t}</span>)}
+                   </div>
+                </div>
+              </div>
+
+              <div className="bg-[#f7fafc] p-6 rounded-3xl border-2 border-white shadow-sm">
+                <p className="text-[10px] font-black text-[#4eb3a2] uppercase mb-3 flex items-center gap-1.5"><BookOpen className="w-4 h-4" /> 歷史與知識</p>
+                <p className="leading-relaxed text-sm font-medium text-[#4a5568] whitespace-pre-line">{selectedSpot.history}</p>
+              </div>
+
+              <div className="bg-[#ffd3b6]/15 border-2 border-dashed border-[#ffd3b6]/50 p-6 rounded-3xl">
+                <p className="text-[10px] font-black text-[#ff8b94] uppercase mb-3 flex items-center gap-1.5"><Info className="w-4 h-4" /> 導遊小叮嚀</p>
+                <p className="text-sm font-medium text-[#4a5568] leading-relaxed whitespace-pre-line">{selectedSpot.guideTip}</p>
+              </div>
+
+              {selectedSpot.riddles?.map((r, ri) => (
+                <div key={ri} className="space-y-4 bg-[#f7fafc] p-5 rounded-3xl border border-gray-100">
+                  <p className="font-black text-[#2d3748] text-sm">🧩 知識挑戰：{r.q}</p>
+                  <div className="grid gap-2">
+                    {r.opts.map((opt, i) => (
+                      <button key={i} className={`p-4 rounded-2xl text-left font-bold text-xs transition-all border-2 ${solvedRiddles[`${selectedSpot.id}-${ri}`] === undefined ? 'bg-white border-white hover:border-[#9de3d0]' : (i === r.ans ? 'bg-[#dcedc1] border-[#dcedc1] text-[#4eb3a2]' : (solvedRiddles[`${selectedSpot.id}-${ri}`] === i ? 'bg-[#ffaaa5]/10 border-[#ffaaa5]/20 text-[#ff8b94]' : 'opacity-40 border-transparent'))}`} 
+                        disabled={solvedRiddles[`${selectedSpot.id}-${ri}`] !== undefined}
+                        onClick={() => handleAnswer(selectedSpot.id, ri, i)}>
+                        <span className="opacity-30 mr-2">{String.fromCharCode(65+i)}.</span> {opt}
+                      </button>
+                    ))}
+                  </div>
+                  {solvedRiddles[`${selectedSpot.id}-${ri}`] !== undefined && (
+                     <p className={`text-[10px] font-black ${solvedRiddles[`${selectedSpot.id}-${ri}`] === r.ans ? 'text-[#4eb3a2]' : 'text-[#ff8b94]'}`}>
+                       {solvedRiddles[`${selectedSpot.id}-${ri}`] === r.ans ? '🎉 答對了！太厲害了！' : `💡 正確答案是：${r.opts[r.ans]}`}
+                     </p>
+                  )}
+                </div>
+              ))}
+
+              {selectedSpot.mapUrl && (
+                <a href={selectedSpot.mapUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 w-full py-4 bg-[#9de3d0]/20 rounded-2xl text-[#4eb3a2] font-black text-sm no-underline border-2 border-white shadow-sm">
+                  <Navigation2 className="w-4 h-4" /> 地圖導航
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
